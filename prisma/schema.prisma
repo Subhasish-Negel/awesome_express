@@ -12,10 +12,13 @@ datasource db {
 
 model Users {
   id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  text       String
-  email      String   @unique
+  name       String
+  email      String @unique
   password   String
   profile    String?
   created_at DateTime @default(now())
   updated_at DateTime @default(now())
 }
+
+// ### REMEMBER: UNIQUE Email FIELD
+// email      String   @unique
