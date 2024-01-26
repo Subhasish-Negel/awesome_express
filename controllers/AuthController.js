@@ -2,6 +2,8 @@ import vine, { errors } from "@vinejs/vine";
 import { loginSchema, registerSchema } from "../validations/authValidation.js";
 import bcrypt from "bcryptjs";
 import { prisma } from "../db/db.config.js";
+import Jwt from "jsonwebtoken";
+
 class AuthController {
   static async register(req, res) {
     try {
@@ -29,6 +31,7 @@ class AuthController {
       const user = await prisma.users.create({ data: payload });
 
       // return res.json({ payload });
+      
       return res.json({
         status: 200,
         message: "User Created Successfully.",
@@ -60,12 +63,26 @@ class AuthController {
       });
 
       if (findUser) {
-        if (!bcrypt.compareSync(payload.password, findUser.password)) {
-          return res
-            .status(400)
-            .json({ errors: { email: "Invalid Credentials" } });
+        if (bcrypt.compareSync(payload.password, findUser.password)) {
+          // Create Login Token
+          const payloadData = {
+            id: findUser.id,
+            email: findUser.email,
+            name: findUser.name,
+            profile: findUser.profile,
+          };
+          const token = Jwt.sign(payloadData, process.env.JWT_SECRET, {
+            expiresIn: "10m",
+          });
+          return res.json({
+            message: "Logged In",
+            access_token: `Bearer ${token}`,
+          });
         }
-        return res.json({ message: "Logged In" });
+
+        return res
+          .status(400)
+          .json({ errors: { email: "Invalid Credentials" } });
       }
       return res.status(400).json({
         errors: {
