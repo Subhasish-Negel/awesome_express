@@ -41,7 +41,6 @@ class ProfileController {
       const imgEXT = profile?.name.split(".");
       const imageName = generateRandomNum() + "." + imgEXT[1];
       const uploadPath = process.cwd() + "/public/images/" + imageName;
-      console.log(uploadPath);
       profile.mv(uploadPath, (err) => {
         if (err) throw err;
       });
