@@ -5,10 +5,10 @@ node_modules/
 build/
 dist/
 
-# # Ignore environment-specific files
-# .env
-# .env.local
-# .env.*.local
+# Ignore environment-specific files
+.env
+.env.local
+.env.*.local
 
 # Ignore log files
 *.log
