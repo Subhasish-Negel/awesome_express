@@ -48,6 +48,7 @@ class ProfileController {
       await prisma.users.update({
         data: {
           profile: imageName,
+          updated_at:new Date()
         },
         where: {
           id: id,
@@ -59,7 +60,7 @@ class ProfileController {
         message: "Profile Picture Updated Successful.",
       });
     } catch (error) {
-      console.log("The Error is", err);
+      console.log("The Error is", error);
       return res.status(500).json({
         message:
           "Something Went REALLY Bad With The Server :( Please Try Later ?",

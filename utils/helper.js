@@ -6,8 +6,8 @@ export const bytesToMB = (bytes) => {
 };
 
 export const imageValidator = (size, mime) => {
-  if (bytesToMB(size) > 2) {
-    return "Image size must me under 2 MB";
+  if (bytesToMB(size) > 1) {
+    return "Image size must me under 1 MB";
   } else if (!supportedMimes.includes(mime)) {
     return "Image must be the type of png, jpg, jpeg, svg, webp";
   }

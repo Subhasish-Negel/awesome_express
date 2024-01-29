@@ -11,6 +11,6 @@ router.post("/auth/login", AuthController.login);
 
 // Profile Operations
 router.get("/profile", authMiddlware, ProfileController.index); // Protected Route
-router.put("/profile/:id",  ProfileController.update);
+router.put("/profile/update/:id", authMiddlware, ProfileController.update);
 
 export default router;
