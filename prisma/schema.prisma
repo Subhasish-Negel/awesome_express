@@ -15,4 +15,16 @@ model Users {
   profile    String?
   created_at DateTime @default(now())
   updated_at DateTime @default(now())
+  news       News[]
+}
+
+model News {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  user_id String @db.ObjectId
+  user    Users  @relation(fields: [user_id], references: [id])
+  title String
+  content String
+  image String
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
 }
