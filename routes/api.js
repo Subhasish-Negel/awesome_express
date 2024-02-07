@@ -14,7 +14,7 @@ router.post("/auth/login", AuthController.login);
 router.get("/profile", authMiddlware, ProfileController.index); // Protected Route
 router.put("/profile/update/:id", authMiddlware, ProfileController.update);
 
-// News API
+// Blog API
 router.get("/news", NewsController.index);
 router.post("/news/create", authMiddlware, NewsController.store);
 router.get("/news/:id", NewsController.show);

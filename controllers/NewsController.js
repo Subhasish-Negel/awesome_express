@@ -7,11 +7,52 @@ import fs from "fs";
 
 export class NewsController {
   static async index(req, res) {
-    const news = await prisma.news.findMany();
-    return res.json({ status: 200, news: news });
+    let page = Number(req.query.page) || 1;
+    let limit = Number(req.query.limit) || 2;
+
+    if (page <= 0) {
+      page = 1;
+    }
+
+    if (limit <= 0 || limit > 5) {
+      limit = 5;
+    }
+
+    const skip = (page - 1) * limit;
+    const totalBlogs = await prisma.news.count();
+    const totalPages = Math.ceil(totalBlogs / limit);
+
+    const blogs = await prisma.news.findMany({
+      skip: skip,
+      take: limit,
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        image: true,
+        created_at: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            profile: true,
+          },
+        },
+      },
+    });
+
+    return res.json({
+      status: 200,
+      news: blogs,
+      metadata: {
+        totalPages,
+        currentPage: page,
+        currentLimit: limit,
+      },
+    });
   }
 
-  static async store(req, res, next) {
+  static async store(req, res) {
     try {
       const user = req.user;
       const body = req.body;
@@ -40,6 +81,7 @@ export class NewsController {
       });
       payload.user_id = user.id;
 
+      
       // upload image URL on cloudinary
       await new Promise((resolve) => setTimeout(resolve, 100));
       const result = await cloudinary.uploader.upload(uploadPath);
@@ -71,9 +113,9 @@ export class NewsController {
     }
   }
 
-  static async show(req, res, next) {}
+  static async show(req, res) {}
 
-  static async update(req, res, next) {}
+  static async update(req, res) {}
 
-  static async destroy(req, res, next) {}
+  static async destroy(req, res) {}
 }
