@@ -6,7 +6,14 @@ import fs from "fs";
 class ProfileController {
   static async index(req, res) {
     try {
-      const user = req.user;
+      const userData = req.user;
+
+      //Include imageUrl in the response
+      const user = { ...userData };
+      const imageURL = cloudinary.url(userData.picture_id);
+      user.image = imageURL;
+      delete user.picture_id;
+
       res.status(200).json({ user });
     } catch (error) {
       res.status(500).json({
@@ -23,6 +30,18 @@ class ProfileController {
   static async update(req, res) {
     try {
       const { id } = req.params;
+      const validUser = req.user;
+
+      if (validUser.id !== id) {
+        return res.status(401).json({ status: 401, message: "UnAuthorized" });
+      }
+
+      // Fetching User
+      const user = await prisma.users.findUnique({
+        where: {
+          id: id,
+        },
+      });
 
       if (!req.files || Object.keys(req.files).length === 0) {
         return res
@@ -49,14 +68,23 @@ class ProfileController {
 
       // upload image on cloudinary
       await new Promise((resolve) => setTimeout(resolve, 50));
-      const result = await cloudinary.uploader.upload(uploadPath);
-      const image_url = result.secure_url;
-      fs.unlinkSync(uploadPath); //Removing the file after successful upload
+      const result = await cloudinary.uploader.upload(uploadPath, {
+        folder: "profilePictures",
+        resource_type: "image",
+      });
+      const picture_id = result.public_id;
 
-      // save the image URL on database
+      // Deleting Old ProfilePic from Server
+      if (user.picture_id) {
+        await cloudinary.uploader.destroy(user.picture_id);
+      }
+
+      fs.unlinkSync(uploadPath);
+
+      // Save the image_id on database
       await prisma.users.update({
         data: {
-          profile: image_url,
+          picture_id: picture_id,
           updated_at: new Date(),
         },
         where: {
@@ -69,10 +97,10 @@ class ProfileController {
         message: "Profile Picture Updated Successful.",
       });
     } catch (error) {
-      console.log("The Error is", error);
       return res.status(500).json({
         message:
           "Something Went REALLY Bad With The Server :( Please Try Later ?",
+        error,
       });
     }
   }

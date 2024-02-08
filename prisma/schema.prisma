@@ -12,19 +12,19 @@ model Users {
   name       String
   email      String   @unique
   password   String
-  profile    String?
+  picture_id String?
   created_at DateTime @default(now())
   updated_at DateTime @default(now())
-  news       News[]
+  blogs      Blogs[]
 }
 
-model News {
-  id      String @id @default(auto()) @map("_id") @db.ObjectId
-  user_id String @db.ObjectId
-  user    Users  @relation(fields: [user_id], references: [id])
-  title String
-  content String
-  image String
+model Blogs {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  user_id    String   @db.ObjectId
+  user       Users    @relation(fields: [user_id], references: [id])
+  title      String
+  content    String
+  image_id   String
   created_at DateTime @default(now())
   updated_at DateTime @default(now())
 }

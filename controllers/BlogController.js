@@ -1,11 +1,11 @@
 import { generateRandomNum, imageValidator } from "../utils/helper.js";
 import { prisma } from "../db/db.config.js";
 import vine, { errors } from "@vinejs/vine";
-import { newsSchema } from "../validations/NewsValidation.js";
+import { blogSchema } from "../validations/BlogValidation.js";
 import cloudinary from "../utils/cloudinary.js";
 import fs from "fs";
 
-export class NewsController {
+export class BlogController {
   static async index(req, res) {
     let page = Number(req.query.page) || 1;
     let limit = Number(req.query.limit) || 2;
@@ -19,31 +19,37 @@ export class NewsController {
     }
 
     const skip = (page - 1) * limit;
-    const totalBlogs = await prisma.news.count();
+    const totalBlogs = await prisma.blogs.count();
     const totalPages = Math.ceil(totalBlogs / limit);
 
-    const blogs = await prisma.news.findMany({
+    const blogs = await prisma.blogs.findMany({
       skip: skip,
       take: limit,
       select: {
         id: true,
         title: true,
         content: true,
-        image: true,
+        image_id: true,
         created_at: true,
         user: {
           select: {
             id: true,
             name: true,
-            profile: true,
+            picture_id: true,
           },
         },
       },
     });
 
+    // Process each object
+    for (const item of blogs) {
+      item.image = cloudinary.url(item.image_id);
+      delete item.image_id;
+    }
+
     return res.json({
       status: 200,
-      news: blogs,
+      blogs: blogs,
       metadata: {
         totalPages,
         currentPage: page,
@@ -56,7 +62,7 @@ export class NewsController {
     try {
       const user = req.user;
       const body = req.body;
-      const validator = vine.compile(newsSchema);
+      const validator = vine.compile(blogSchema);
       const payload = await validator.validate(body);
 
       if (!req.files || Object.keys(req.files).length === 0) {
@@ -66,7 +72,6 @@ export class NewsController {
       }
 
       // Custom image validator
-
       const image = req.files?.thumbnail;
       const message = imageValidator(image?.size, image?.mimetype);
       if (message !== null)
@@ -82,26 +87,34 @@ export class NewsController {
       payload.user_id = user.id;
 
       // upload image URL on cloudinary
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      const result = await cloudinary.uploader.upload(uploadPath);
-      payload.image = result.secure_url;
-      fs.unlinkSync(uploadPath); //Removing the file after successful upload
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const result = await cloudinary.uploader.upload(uploadPath, {
+        folder: "blogPictures",
+        resource_type: "image",
+      });
+      const image_id = result?.public_id;
+      fs.unlinkSync(uploadPath);
 
-      // save the image on database
-      const blog = await prisma.news.create({
+      // Save the image_id on database
+      payload.image_id = image_id;
+      await prisma.blogs.create({
         data: payload,
       });
 
+      //Include imageUrl in the response
+      const response = { ...payload };
+      const imageURL = cloudinary.url(image_id);
+      response.image = imageURL;
+      delete response.image_id;
       return res.json({
         status: 200,
         message: "Blog Created Successfully",
-        blog,
+        response,
       });
     } catch (error) {
       if (error instanceof errors.E_VALIDATION_ERROR) {
         return res.status(400).json({ errors: error.messages });
       } else {
-        console.log(error.message);
         return res.status(500).json({
           status: 500,
           message: error.message,
@@ -113,31 +126,60 @@ export class NewsController {
   }
 
   static async show(req, res) {
-    const { id } = req.params;
-    const blog = await prisma.news.findUnique({
-      where: {
-        id: id,
-      },
-      select: {
-        id: true,
-        title: true,
-        content: true,
-        image: true,
-        created_at: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            profile: true,
+    try {
+      const { id } = req.params;
+
+      // Check if ID is valid
+      const checkIdFormat = new RegExp("^[0-9a-fA-F]{24}$");
+      if (!checkIdFormat.test(id)) {
+        return res.status(400).json({ error: "Invalid ObjectID" });
+      }
+
+      const blog = await prisma.blogs.findUnique({
+        where: {
+          id: id,
+        },
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          image: true,
+          created_at: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              profile: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    res.json({ status: 200, blog: blog });
+      // Not Found Error Handling
+      if (!blog) {
+        return res.status(404).json({ error: "Blog Not Found" });
+      }
+
+      res.json({ status: 200, blog: blog });
+    } catch (error) {
+      return res.status(500).json({
+        message:
+          "Something Went REALLY Bad With The Server :( Please Try Later ?",
+      });
+    }
   }
 
-  static async update(req, res) {}
+  static async update(req, res) {
+    const { id } = req.params;
+    const user = req.user;
+    const blog = await prisma.blogs.findUnique({
+      where: { id: id },
+    });
+
+    if (user.id !== blog.user_id) {
+      return res.status(401).json({ message: "UnAuthorized" });
+    }
+  }
 
   static async destroy(req, res) {}
 }

@@ -68,7 +68,7 @@ class AuthController {
             id: findUser.id,
             email: findUser.email,
             name: findUser.name,
-            profile: findUser.profile,
+            picture_id: findUser.picture_id,
           };
           const token = Jwt.sign(payloadData, process.env.JWT_SECRET, {
             expiresIn: "1h",
@@ -79,11 +79,9 @@ class AuthController {
           });
         }
 
-        return res
-          .status(400)
-          .json({ errors: { email: "Invalid Credentials" } });
+        return res.status(401).json({ errors: "Invalid Password" });
       }
-      return res.status(400).json({
+      return res.status(401).json({
         errors: {
           email: "No user found with this email",
         },

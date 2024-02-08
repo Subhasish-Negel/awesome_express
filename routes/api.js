@@ -2,7 +2,7 @@ import { Router } from "express";
 import AuthController from "../controllers/AuthController.js";
 import ProfileController from "../controllers/ProfileController.js";
 import authMiddlware from "../middlewares/Authentication.js";
-import { NewsController } from "../controllers/NewsController.js";
+import { BlogController } from "../controllers/BlogController.js";
 
 const router = Router();
 
@@ -15,10 +15,10 @@ router.get("/profile", authMiddlware, ProfileController.index); // Protected Rou
 router.put("/profile/update/:id", authMiddlware, ProfileController.update);
 
 // Blog API
-router.get("/news", NewsController.index);
-router.post("/news/create", authMiddlware, NewsController.store);
-router.get("/news/:id", NewsController.show);
-router.put("/news/update/:id", NewsController.update);
-router.delete("/news/delete/:id", NewsController.destroy);
+router.get("/blog", BlogController.index);
+router.post("/blog/create", authMiddlware, BlogController.store);
+router.get("/blog/:id", BlogController.show);
+router.put("/blog/update/:id", BlogController.update);
+router.delete("/blog/delete/:id", BlogController.destroy);
 
 export default router;
