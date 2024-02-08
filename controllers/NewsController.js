@@ -81,7 +81,6 @@ export class NewsController {
       });
       payload.user_id = user.id;
 
-      
       // upload image URL on cloudinary
       await new Promise((resolve) => setTimeout(resolve, 100));
       const result = await cloudinary.uploader.upload(uploadPath);
@@ -113,7 +112,30 @@ export class NewsController {
     }
   }
 
-  static async show(req, res) {}
+  static async show(req, res) {
+    const { id } = req.params;
+    const blog = await prisma.news.findUnique({
+      where: {
+        id: id,
+      },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        image: true,
+        created_at: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            profile: true,
+          },
+        },
+      },
+    });
+
+    res.json({ status: 200, blog: blog });
+  }
 
   static async update(req, res) {}
 
