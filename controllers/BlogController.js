@@ -1,7 +1,12 @@
-import { generateRandomNum, imageValidator } from "../utils/helper.js";
+import {
+  generateRandomNum,
+  imageValidator,
+  checkIdFormat,
+} from "../utils/helper.js";
 import { prisma } from "../db/db.config.js";
 import vine, { errors } from "@vinejs/vine";
 import { blogSchema } from "../validations/BlogValidation.js";
+import { blogUpdateSchema } from "../validations/BlogUpdateValidation.js";
 import cloudinary from "../utils/cloudinary.js";
 import fs from "fs";
 
@@ -72,7 +77,12 @@ export class BlogController {
       }
 
       // Custom image validator
-      const image = req.files?.thumbnail;
+      const image = req.files?.image;
+      if (!image) {
+        return res
+          .status(411)
+          .json({ error: "Please Provide Blog Cover Image" });
+      }
       const message = imageValidator(image?.size, image?.mimetype);
       if (message !== null)
         return res.status(400).json({ errors: { image: message } });
@@ -130,7 +140,6 @@ export class BlogController {
       const { id } = req.params;
 
       // Check if ID is valid
-      const checkIdFormat = new RegExp("^[0-9a-fA-F]{24}$");
       if (!checkIdFormat.test(id)) {
         return res.status(400).json({ error: "Invalid ObjectID" });
       }
@@ -143,13 +152,13 @@ export class BlogController {
           id: true,
           title: true,
           content: true,
-          image: true,
+          image_id: true,
           created_at: true,
           user: {
             select: {
               id: true,
               name: true,
-              profile: true,
+              picture_id: true,
             },
           },
         },
@@ -165,19 +174,96 @@ export class BlogController {
       return res.status(500).json({
         message:
           "Something Went REALLY Bad With The Server :( Please Try Later ?",
+        error: error,
       });
     }
   }
 
   static async update(req, res) {
-    const { id } = req.params;
-    const user = req.user;
-    const blog = await prisma.blogs.findUnique({
-      where: { id: id },
-    });
+    try {
+      const { id } = req.params;
+      const user = req.user;
+      const body = req.body;
 
-    if (user.id !== blog.user_id) {
-      return res.status(401).json({ message: "UnAuthorized" });
+      // Check if ID is valid
+      if (!checkIdFormat.test(id)) {
+        return res.status(400).json({ error: "Invalid ObjectID" });
+      }
+
+      // Get the Blog
+      const blog = await prisma.blogs.findUnique({
+        where: { id: id },
+      });
+
+      // No Blog Found Error Handling
+      if (!blog) {
+        return res.status(404).json({ error: "Blog Not Found" });
+      }
+
+      // Check the Owner
+      if (user.id !== blog.user_id) {
+        return res.status(401).json({ message: "UnAuthorized" });
+      }
+
+      // Data Validation
+      const validator = vine.compile(blogUpdateSchema);
+      const payload = await validator.validate(body);
+
+      // Check Image Exists
+      const image = req.files?.image;
+      if (image) {
+        const message = imageValidator(image?.size, image?.mimetype);
+        if (message !== null)
+          return res.status(400).json({ errors: { image: message } });
+
+        console.log("lmao");
+        const imgEXT = image.name.split(".");
+        const newImageName = generateRandomNum() + "." + imgEXT[1];
+        const uploadPath =
+          process.cwd() + "/public/images/blog/" + newImageName;
+        await image.mv(uploadPath, (err) => {
+          if (err) throw err;
+        });
+
+        // Upload image on cloudinary
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        const result = await cloudinary.uploader.upload(uploadPath, {
+          folder: "blogPictures",
+          resource_type: "image",
+        });
+        const image_id = result?.public_id;
+        payload.image_id = image_id;
+        fs.unlinkSync(uploadPath);
+
+        // Deleting Old CoverPic from Server
+        if (blog.image_id) {
+          await cloudinary.uploader.destroy(blog.image_id);
+        }
+      }
+
+      //If No Update
+      if (Object.keys(payload).length === 0) {
+        return res.status(411).json({ error: "No Changes Found to Update" });
+      }
+
+      // Save the image_id on database
+      await prisma.blogs.update({
+        data: { ...payload, updated_at: new Date() },
+        where: {
+          id: id,
+        },
+      });
+
+      res.status(200).json({
+        message: "Blog Updated Successfully",
+        data: payload,
+      });
+    } catch (error) {
+      if (error instanceof errors.E_VALIDATION_ERROR) {
+        return res.status(400).json({ errors: error.messages });
+      } else {
+        res.status(400).json({ error: error });
+      }
     }
   }
 

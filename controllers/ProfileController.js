@@ -32,6 +32,7 @@ class ProfileController {
       const { id } = req.params;
       const validUser = req.user;
 
+      // Validating Owner of the Account 
       if (validUser.id !== id) {
         return res.status(401).json({ status: 401, message: "UnAuthorized" });
       }

@@ -18,7 +18,7 @@ router.put("/profile/update/:id", authMiddlware, ProfileController.update);
 router.get("/blog", BlogController.index);
 router.post("/blog/create", authMiddlware, BlogController.store);
 router.get("/blog/:id", BlogController.show);
-router.put("/blog/update/:id", BlogController.update);
-router.delete("/blog/delete/:id", BlogController.destroy);
+router.put("/blog/update/:id", authMiddlware, BlogController.update);
+router.delete("/blog/delete/:id", authMiddlware, BlogController.destroy);
 
 export default router;

@@ -18,3 +18,6 @@ export const imageValidator = (size, mime) => {
 export const generateRandomNum = () => {
   return uuidv4();
 };
+
+// Check MongoDB id length
+export const checkIdFormat = new RegExp("^[0-9a-fA-F]{24}$");
