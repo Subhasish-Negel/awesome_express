@@ -63,7 +63,7 @@ export class BlogController {
     });
   }
 
-  static async store(req, res) {
+  static async create(req, res) {
     try {
       const user = req.user;
       const body = req.body;
@@ -168,7 +168,6 @@ export class BlogController {
       if (!blog) {
         return res.status(404).json({ error: "Blog Not Found" });
       }
-
       res.json({ status: 200, blog: blog });
     } catch (error) {
       return res.status(500).json({
@@ -216,7 +215,6 @@ export class BlogController {
         if (message !== null)
           return res.status(400).json({ errors: { image: message } });
 
-        console.log("lmao");
         const imgEXT = image.name.split(".");
         const newImageName = generateRandomNum() + "." + imgEXT[1];
         const uploadPath =
@@ -267,5 +265,51 @@ export class BlogController {
     }
   }
 
-  static async destroy(req, res) {}
+  static async destroy(req, res) {
+    try {
+      const { id } = req.params;
+      const user = req.user;
+
+      // Check if ID is valid
+      if (!checkIdFormat.test(id)) {
+        return res.status(400).json({ error: "Invalid ObjectID" });
+      }
+
+      const blog = await prisma.blogs.findUnique({
+        where: {
+          id: id,
+        },
+      });
+
+      // No Blog Found Error Handling
+      if (!blog) {
+        return res.status(404).json({ error: "Blog Not Found" });
+      }
+
+      if (user.id !== blog.user_id) {
+        return res.status(401).json({ message: "UnAuthorized" });
+      }
+
+      // CAUTION !! This is for deleting Media from Cloudinary, Remove this code after implementing Soft Delete !!!!
+      if (blog.image_id) {
+        await cloudinary.uploader.destroy(blog.image_id);
+      }
+      // Delete Blog
+      await prisma.blogs.delete({
+        where: {
+          id: id,
+        },
+      });
+      res.status(200).json({
+        message: "Blog Deleted Successfully",
+      });
+    } catch (error) {
+      res.status(500).json({
+        status: 500,
+        message:
+          "Something Went REALLY Bad With The Server :( Please Try Later ?",
+        error: error,
+      });
+    }
+  }
 }

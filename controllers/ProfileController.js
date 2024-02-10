@@ -8,17 +8,26 @@ class ProfileController {
     try {
       const userData = req.user;
 
-      //Include imageUrl in the response
-      const user = { ...userData };
-      const imageURL = cloudinary.url(userData.picture_id);
-      user.image = imageURL;
-      delete user.picture_id;
+      if (!userData.picture_id) {
+        const user = await prisma.users.findUnique({
+          where: { id: userData.id },
+        });
+        if (user.picture_id) {
+          userData.picture_id = user.picture_id;
+        }
+      }
 
-      res.status(200).json({ user });
+      // Include imageUrl in the response
+      const imageURL = cloudinary.url(userData.picture_id);
+      userData.image = imageURL;
+      delete userData.picture_id;
+
+      res.status(200).json({ userData });
     } catch (error) {
       res.status(500).json({
         message:
           "Something Went REALLY Bad With The Server :( Please Try Later ?",
+        error: error,
       });
     }
   }
@@ -32,7 +41,7 @@ class ProfileController {
       const { id } = req.params;
       const validUser = req.user;
 
-      // Validating Owner of the Account 
+      // Validating Owner of the Account
       if (validUser.id !== id) {
         return res.status(401).json({ status: 401, message: "UnAuthorized" });
       }
