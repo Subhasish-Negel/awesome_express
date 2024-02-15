@@ -7,22 +7,23 @@ class ProfileController {
   static async index(req, res) {
     try {
       const userData = req.user;
-
-      if (!userData.picture_id) {
-        const user = await prisma.users.findUnique({
-          where: { id: userData.id },
-        });
-        if (user.picture_id) {
-          userData.picture_id = user.picture_id;
-        }
-      }
+      const user = await prisma.users.findUnique({
+        where: { id: userData.id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          picture_id: true,
+        },
+      });
 
       // Include imageUrl in the response
-      const imageURL = cloudinary.url(userData.picture_id);
-      userData.image = imageURL;
-      delete userData.picture_id;
+      if (user.picture_id) {
+        user.image = cloudinary.url(user.picture_id);
+      }
+      delete user.picture_id;
 
-      res.status(200).json({ userData });
+      res.status(200).json({ user });
     } catch (error) {
       res.status(500).json({
         message:
@@ -31,10 +32,6 @@ class ProfileController {
       });
     }
   }
-
-  static async store() {}
-
-  static async show() {}
 
   static async update(req, res) {
     try {

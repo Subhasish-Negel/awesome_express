@@ -9,6 +9,8 @@ import { blogSchema } from "../validations/BlogValidation.js";
 import { blogUpdateSchema } from "../validations/BlogUpdateValidation.js";
 import cloudinary from "../utils/cloudinary.js";
 import fs from "fs";
+import { redisCache } from "../db/redis.config.js";
+import logger from "../config/logger.js";
 
 export class BlogController {
   static async index(req, res) {
@@ -28,8 +30,8 @@ export class BlogController {
     const totalPages = Math.ceil(totalBlogs / limit);
 
     const blogs = await prisma.blogs.findMany({
-      skip: skip,
-      take: limit,
+      // skip: skip,
+      // take: limit,
       select: {
         id: true,
         title: true,
@@ -50,6 +52,10 @@ export class BlogController {
     for (const item of blogs) {
       item.image = cloudinary.url(item.image_id);
       delete item.image_id;
+      if (item.user.picture_id) {
+        item.user.image = cloudinary.url(item.user.picture_id);
+        delete item.user.picture_id;
+      }
     }
 
     return res.json({
@@ -116,6 +122,12 @@ export class BlogController {
       const imageURL = cloudinary.url(image_id);
       response.image = imageURL;
       delete response.image_id;
+
+      // Remove cache from Redis
+      redisCache.del("/api/blog", (err) => {
+        if (err) throw err;
+      });
+
       return res.json({
         status: 200,
         message: "Blog Created Successfully",
@@ -170,6 +182,7 @@ export class BlogController {
       }
       res.json({ status: 200, blog: blog });
     } catch (error) {
+      logger.log({ level: "error", message: error });
       return res.status(500).json({
         message:
           "Something Went REALLY Bad With The Server :( Please Try Later ?",
@@ -257,11 +270,7 @@ export class BlogController {
         data: payload,
       });
     } catch (error) {
-      if (error instanceof errors.E_VALIDATION_ERROR) {
-        return res.status(400).json({ errors: error.messages });
-      } else {
-        res.status(400).json({ error: error });
-      }
+      res.status(400).json({ error: error });
     }
   }
 

@@ -9,6 +9,7 @@ datasource db {
 
 model Users {
   id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  role       String  @default("user")
   name       String
   email      String   @unique
   password   String

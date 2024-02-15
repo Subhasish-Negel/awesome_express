@@ -45,6 +45,7 @@ class AuthController {
           status: 500,
           message:
             "Something Went REALLY Bad With The Server :( Please Try Later ?",
+          error: error,
         });
       }
     }
@@ -66,9 +67,7 @@ class AuthController {
           // Create Login Token
           const payloadData = {
             id: findUser.id,
-            email: findUser.email,
-            name: findUser.name,
-            picture_id: findUser.picture_id,
+            role: findUser.role,
           };
           const token = Jwt.sign(payloadData, process.env.JWT_SECRET, {
             expiresIn: "1h",
